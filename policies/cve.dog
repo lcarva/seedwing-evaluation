@@ -1,0 +1,28 @@
+// TODO: Ideally, the whole logic could be written as a single pattern, but the nested lists
+// makes it really hard to read with all the list::<f>.
+pattern allow = {
+    // TODO: Potential pitfal if _::not-empty is not used because nothing may match the
+    // tekton::pipeline-run filter which would cause list::all to succeed. This could be
+    // simplified if list::some would works as a filter as well.
+    attestations: tekton::pipeline-run | list::all<clair-scan-succeeded> | _::not-empty
+}
+
+pattern clair-scan-succeeded = {
+    predicate: {
+        buildConfig: {
+            tasks: list::filter<{ref: {name: "clair-scan"}}> | list::all<passing-results> | _::not-empty
+            // TODO: Something like this would be nice.
+            // tasks: list::some<1, {ref: {name: "clair-scan"}}> | list::all<passing-results>
+        }
+    }
+}
+
+pattern passing-results = {
+    results: list::some<1,
+        {
+            name: "CLAIR_SCAN_RESULT",
+            // TODO: Make the severity levels (critical, high) configurable via data.
+            value: json::json | self.vulnerabilities | (self.critical | 0) && (self.high | 0)
+        }
+    >
+}

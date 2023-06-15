@@ -1,0 +1,762 @@
+{
+  "attestations": [
+    {
+      "_type": "https://in-toto.io/Statement/v0.1",
+      "predicateType": "https://slsa.dev/provenance/v0.2",
+      "subject": [
+        {
+          "name": "quay.io/redhat-appstudio/ec-golden-image",
+          "digest": {
+            "sha256": "304040ca1911aa4d911bd7c6d6d07193c57dc49dbc43e63828b42ab204fb1b25"
+          }
+        }
+      ],
+      "predicate": {
+        "builder": {
+          "id": "https://tekton.dev/chains/v2"
+        },
+        "buildType": "tekton.dev/v1beta1/PipelineRun",
+        "invocation": {
+          "configSource": {},
+          "parameters": {
+            "dockerfile": "./Containerfile",
+            "git-url": "https://github.com/hacbs-contract/golden-container",
+            "hermetic": "false",
+            "java": "false",
+            "output-image": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c",
+            "path-context": ".",
+            "prefetch-input": "",
+            "rebuild": "false",
+            "revision": "08b938499ee47a25673f5e6a56f69ce57d87b45c",
+            "skip-checks": "false",
+            "snyk-secret": ""
+          }
+        },
+        "buildConfig": {
+          "tasks": [
+            {
+              "name": "init",
+              "ref": {
+                "name": "init",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-init:0.1@sha256:5ce77110e2a49407a69a7922042dc0859f7e8f5f75dc0cd0bcc2d17860469bdb"
+              },
+              "startedOn": "2023-03-22T19:38:04Z",
+              "finishedOn": "2023-03-22T19:38:19Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/bin/bash\necho \"Build Initialize: $IMAGE_URL\"\necho\necho \"Create pipelinerun repository secret\"\nSHARED=/secret/default-push-secret/.dockerconfigjson\nexport DOCKER_CONFIG=/tmp/docker/\nmkdir -p $DOCKER_CONFIG\nif [ -f $SHARED ]; then\n  jq -M -s '.[0] * .[1]' $SHARED /root/.docker/config.json > $DOCKER_CONFIG/config.json\nelse\n  cp /root/.docker/config.json $DOCKER_CONFIG/config.json\nfi\noc create secret generic --from-file=$DOCKER_CONFIG/config.json $SHARED_PARAM $PIPELINERUN_NAME\noc patch secret $PIPELINERUN_NAME -p \"{\\\"metadata\\\": {\\\"ownerReferences\\\": [{\\\"apiVersion\\\": \\\"tekton.dev/v1beta1\\\", \\\"blockOwnerDeletion\\\": false, \\\"controller\\\": true, \\\"kind\\\": \\\"PipelineRun\\\", \\\"name\\\": \\\"$PIPELINERUN_NAME\\\", \\\"uid\\\": \\\"$PIPELINERUN_UID\\\" }]}}\"\necho -n $PIPELINERUN_NAME > /tekton/results/container-registry-secret\n\necho \"Determine if Image Already Exists\"\n# Build the image when image does not exists or rebuild is set to true\nif ! oc image info $IMAGE_URL &>/dev/null || [ \"$REBUILD\" == \"true\" ] || [ \"$SKIP_CHECKS\" == \"false\" ]; then\n  echo -n \"true\" > /tekton/results/build\nelse\n  echo -n \"false\" > /tekton/results/build\nfi\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "init",
+                    "image": "registry.redhat.io/openshift4/ose-tools-rhel8@sha256:253d042ecfad7b64593112a4aa3f528d39cb5fe738852e44f009db87964cf051"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "image-url": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c",
+                  "pipelinerun-name": "contract-golden-image-on-push-cg9vm",
+                  "pipelinerun-uid": "3a81b51d-d7c4-44f2-b053-ad1f8857e709",
+                  "rebuild": "false",
+                  "shared-secret": "redhat-appstudio-user-workload",
+                  "skip-checks": "false"
+                }
+              },
+              "results": [
+                {
+                  "name": "build",
+                  "type": "string",
+                  "value": "true"
+                },
+                {
+                  "name": "container-registry-secret",
+                  "type": "string",
+                  "value": "contract-golden-image-on-push-cg9vm"
+                }
+              ]
+            },
+            {
+              "name": "clone-repository",
+              "after": [
+                "init"
+              ],
+              "ref": {
+                "name": "git-clone",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-git-clone:0.1@sha256:f4e37778cba00296606ddfbc1c58181330899cafcaa1ee41c75a7cf8bed312f0"
+              },
+              "startedOn": "2023-03-22T19:38:22Z",
+              "finishedOn": "2023-03-22T19:38:47Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/usr/bin/env sh\nset -eu\n\nif [ \"${PARAM_VERBOSE}\" = \"true\" ] ; then\n  set -x\nfi\n\nif [ \"${WORKSPACE_BASIC_AUTH_DIRECTORY_BOUND}\" = \"true\" ] ; then\n  cp \"${WORKSPACE_BASIC_AUTH_DIRECTORY_PATH}/.git-credentials\" \"${PARAM_USER_HOME}/.git-credentials\"\n  cp \"${WORKSPACE_BASIC_AUTH_DIRECTORY_PATH}/.gitconfig\" \"${PARAM_USER_HOME}/.gitconfig\"\n  chmod 400 \"${PARAM_USER_HOME}/.git-credentials\"\n  chmod 400 \"${PARAM_USER_HOME}/.gitconfig\"\nfi\n\nif [ \"${WORKSPACE_SSH_DIRECTORY_BOUND}\" = \"true\" ] ; then\n  cp -R \"${WORKSPACE_SSH_DIRECTORY_PATH}\" \"${PARAM_USER_HOME}\"/.ssh\n  chmod 700 \"${PARAM_USER_HOME}\"/.ssh\n  chmod -R 400 \"${PARAM_USER_HOME}\"/.ssh/*\nfi\n\nCHECKOUT_DIR=\"${WORKSPACE_OUTPUT_PATH}/${PARAM_SUBDIRECTORY}\"\n\ncleandir() {\n  # Delete any existing contents of the repo directory if it exists.\n  #\n  # We don't just \"rm -rf ${CHECKOUT_DIR}\" because ${CHECKOUT_DIR} might be \"/\"\n  # or the root of a mounted volume.\n  if [ -d \"${CHECKOUT_DIR}\" ] ; then\n    # Delete non-hidden files and directories\n    rm -rf \"${CHECKOUT_DIR:?}\"/*\n    # Delete files and directories starting with . but excluding ..\n    rm -rf \"${CHECKOUT_DIR}\"/.[!.]*\n    # Delete files and directories starting with .. plus any other character\n    rm -rf \"${CHECKOUT_DIR}\"/..?*\n  fi\n}\n\nif [ \"${PARAM_DELETE_EXISTING}\" = \"true\" ] ; then\n  cleandir\nfi\n\ntest -z \"${PARAM_HTTP_PROXY}\" || export HTTP_PROXY=\"${PARAM_HTTP_PROXY}\"\ntest -z \"${PARAM_HTTPS_PROXY}\" || export HTTPS_PROXY=\"${PARAM_HTTPS_PROXY}\"\ntest -z \"${PARAM_NO_PROXY}\" || export NO_PROXY=\"${PARAM_NO_PROXY}\"\n\n/ko-app/git-init \\\n  -url=\"${PARAM_URL}\" \\\n  -revision=\"${PARAM_REVISION}\" \\\n  -refspec=\"${PARAM_REFSPEC}\" \\\n  -path=\"${CHECKOUT_DIR}\" \\\n  -sslVerify=\"${PARAM_SSL_VERIFY}\" \\\n  -submodules=\"${PARAM_SUBMODULES}\" \\\n  -depth=\"${PARAM_DEPTH}\" \\\n  -sparseCheckoutDirectories=\"${PARAM_SPARSE_CHECKOUT_DIRECTORIES}\"\ncd \"${CHECKOUT_DIR}\"\nRESULT_SHA=\"$(git rev-parse HEAD)\"\nEXIT_CODE=\"$?\"\nif [ \"${EXIT_CODE}\" != 0 ] ; then\n  exit \"${EXIT_CODE}\"\nfi\nprintf \"%s\" \"${RESULT_SHA}\" > \"/tekton/results/commit\"\nprintf \"%s\" \"${PARAM_URL}\" > \"/tekton/results/url\"\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "clone",
+                    "image": "registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:2fa0b06d52b04f377c696412e19307a9eff27383f81d87aae0b4f71672a1cd0b"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "deleteExisting": "true",
+                  "depth": "1",
+                  "gitInitImage": "registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8:v1.8.2-8@sha256:a538c423e7a11aae6ae582a411fdb090936458075f99af4ce5add038bb6983e8",
+                  "httpProxy": "",
+                  "httpsProxy": "",
+                  "noProxy": "",
+                  "refspec": "",
+                  "revision": "08b938499ee47a25673f5e6a56f69ce57d87b45c",
+                  "sparseCheckoutDirectories": "",
+                  "sslVerify": "true",
+                  "subdirectory": "",
+                  "submodules": "true",
+                  "url": "https://github.com/hacbs-contract/golden-container",
+                  "userHome": "/tekton/home",
+                  "verbose": "true"
+                }
+              },
+              "results": [
+                {
+                  "name": "commit",
+                  "type": "string",
+                  "value": "08b938499ee47a25673f5e6a56f69ce57d87b45c"
+                },
+                {
+                  "name": "url",
+                  "type": "string",
+                  "value": "https://github.com/hacbs-contract/golden-container"
+                }
+              ]
+            },
+            {
+              "name": "build-container",
+              "after": [
+                "prefetch-dependencies",
+                "init"
+              ],
+              "ref": {
+                "name": "buildah",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-buildah:0.1@sha256:c3712257615d206ef40013bf1c5c681670fc8f7fd6aac9fa4c86f7afeff627ef"
+              },
+              "startedOn": "2023-03-22T19:38:51Z",
+              "finishedOn": "2023-03-22T19:39:44Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "if [ -e \"$CONTEXT/$DOCKERFILE\" ]; then\n  dockerfile_path=\"$CONTEXT/$DOCKERFILE\"\nelif [ -e \"$DOCKERFILE\" ]; then\n  dockerfile_path=\"$DOCKERFILE\"\nelif echo \"$DOCKERFILE\" | grep -q \"^https\\?://\"; then\n  echo \"Fetch Dockerfile from $DOCKERFILE\"\n  dockerfile_path=$(mktemp --suffix=-Dockerfile)\n  http_code=$(curl -s -L -w \"%{http_code}\" --output \"$dockerfile_path\" \"$DOCKERFILE\")\n  if [ $http_code != 200 ]; then\n    echo \"No Dockerfile is fetched. Server responds $http_code\"\n    exit 1\n  fi\nelse\n  echo \"Cannot find Dockerfile $DOCKERFILE\"\n  exit 1\nfi\nif [ -n \"$JVM_BUILD_WORKSPACE_ARTIFACT_CACHE_PORT_80_TCP_ADDR\" ] && grep -q '^\\s*RUN \\(./\\)\\?mvn' \"$dockerfile_path\"; then\n  sed -i -e \"s|^\\s*RUN \\(\\(./\\)\\?mvn\\(.*\\)\\)|RUN echo \\\"<settings><mirrors><mirror><id>mirror.default</id><url>http://$JVM_BUILD_WORKSPACE_ARTIFACT_CACHE_PORT_80_TCP_ADDR/v1/cache/default/0/</url><mirrorOf>*</mirrorOf></mirror></mirrors></settings>\\\" > /tmp/settings.yaml; \\1 -s /tmp/settings.yaml|g\" \"$dockerfile_path\"\n  touch /var/lib/containers/java\nfi\n\n\nsed -i 's/^\\s*short-name-mode\\s*=\\s*.*/short-name-mode = \"disabled\"/' /etc/containers/registries.conf\n\n# Setting new namespace to run buildah - 2^32-2\necho 'root:1:4294967294' | tee -a /etc/subuid >> /etc/subgid\n\nif [ \"${HERMETIC}\" == \"true\" ]; then\n  BUILDAH_ARGS=\"--pull=never\"\n  UNSHARE_ARGS=\"--net\"\n  for image in $(grep -i '^\\s*FROM' \"$dockerfile_path\" | sed 's/--platform=\\S*//' | awk '{print $2}'); do\n    unshare -Ufp --keep-caps -r --map-users 1,1,65536 --map-groups 1,1,65536 -- buildah pull $image\n  done\n  echo \"Build will be executed with network isolation\"\nfi\n\nif [ -n \"${PREFETCH_INPUT}\" ]; then\n  mv cachi2 /tmp/\n  chmod -R go+rwX /tmp/cachi2\n  VOLUME_MOUNTS=\"--volume /tmp/cachi2:/cachi2\"\n  sed -i 's|^\\s*run |RUN . /cachi2/cachi2.env \\&\\& \\\\\\n    |i' \"$dockerfile_path\"\n  echo \"Prefetched content will be made available\"\nfi\n\nunshare -Uf $UNSHARE_ARGS --keep-caps -r --map-users 1,1,65536 --map-groups 1,1,65536 -- buildah bud \\\n  $VOLUME_MOUNTS \\\n  $BUILDAH_ARGS \\\n  --tls-verify=$TLSVERIFY --no-cache \\\n  --ulimit nofile=4096:4096 \\\n  -f \"$dockerfile_path\" -t $IMAGE $CONTEXT\n\ncontainer=$(buildah from --pull-never $IMAGE)\nbuildah mount $container | tee /workspace/container_path\necho $container > /workspace/container_name\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "build",
+                    "image": "quay.io/redhat-appstudio/buildah@sha256:381e9bfedd59701477621da93892106873a6951b196105d3d2d85c3f6d7b569b"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "syft dir:/workspace/source --file=/workspace/source/sbom-source.json --output=cyclonedx-json\nfind $(cat /workspace/container_path) -xtype l -delete\nsyft dir:$(cat /workspace/container_path) --file=/workspace/source/sbom-image.json --output=cyclonedx-json\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "sbom-get",
+                    "image": "quay.io/redhat-appstudio/syft@sha256:09afc449976230f66848c19bb5ccf344eb0eeb4ed50747e33b53aff49462c319"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "if [ -f /var/lib/containers/java ]; then\n  /opt/jboss/container/java/run/run-java.sh analyse-dependencies path $(cat /workspace/container_path) -s /workspace/source/sbom-image.json --task-run-name contract-golden-image-on-push-cg9vm-build-container --publishers /tekton/results/SBOM_JAVA_COMPONENTS_COUNT\n  sed -i 's/^/ /' /tekton/results/SBOM_JAVA_COMPONENTS_COUNT # Workaround for SRVKP-2875\nelse\n  touch /tekton/results/JAVA_COMMUNITY_DEPENDENCIES\nfi\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "analyse-dependencies-java-sbom",
+                    "image": "quay.io/redhat-appstudio/hacbs-jvm-build-request-processor@sha256:b198cf4b33dab59ce8ac25afd4e1001390db29ca2dec83dc8a1e21b0359ce743"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "#!/bin/python3\nimport json\nimport os\n\n# load SBOMs\nwith open(\"./sbom-image.json\") as f:\n  image_sbom = json.load(f)\n\nwith open(\"./sbom-source.json\") as f:\n  source_sbom = json.load(f)\n\n# fetch unique components from available SBOMs\ndef get_identifier(component):\n  return component[\"name\"] + '@' + component.get(\"version\", \"\")\n\nexisting_components = [get_identifier(component) for component in image_sbom[\"components\"]]\n\nfor component in source_sbom[\"components\"]:\n  if get_identifier(component) not in existing_components:\n    image_sbom[\"components\"].append(component)\n    existing_components.append(get_identifier(component))\n\nimage_sbom[\"components\"].sort(key=lambda c: get_identifier(c))\n\n# write the CycloneDX unified SBOM\nwith open(\"./sbom-cyclonedx.json\", \"w\") as f:\n  json.dump(image_sbom, f, indent=4)\n\n# create and write the PURL unified SBOM\npurls = [{\"purl\": component[\"purl\"]} for component in image_sbom[\"components\"] if \"purl\" in component]\npurl_content = {\"image_contents\": {\"dependencies\": purls}}\n\nwith open(\"sbom-purl.json\", \"w\") as output_file:\n  json.dump(purl_content, output_file, indent=4)\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "merge-sboms",
+                    "image": "registry.access.redhat.com/ubi9/python-39@sha256:89463fe3e086620617a4f6281640469ba7a7abd2f1b5be13e6cf0f46a6565516"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "# Expose base image digests\nbuildah images --format '{{ .Name }}:{{ .Tag }}@{{ .Digest }}' | grep -v $IMAGE > /tekton/results/BASE_IMAGES_DIGESTS\n\nbase_image_name=$(buildah inspect --format '{{ index .ImageAnnotations \"org.opencontainers.image.base.name\"}}' $IMAGE)\nbase_image_digest=$(buildah inspect --format '{{ index .ImageAnnotations \"org.opencontainers.image.base.digest\"}}' $IMAGE)\ncontainer=$(buildah from --pull-never $IMAGE)\nbuildah copy $container sbom-cyclonedx.json sbom-purl.json /root/buildinfo/content_manifests/\nbuildah config -a org.opencontainers.image.base.name=${base_image_name} -a org.opencontainers.image.base.digest=${base_image_digest} $container\nbuildah commit $container $IMAGE\nbuildah push \\\n  --tls-verify=$TLSVERIFY \\\n  --digestfile /workspace/source/image-digest $IMAGE \\\n  docker://$IMAGE\ncat \"/workspace/source\"/image-digest | tee /tekton/results/IMAGE_DIGEST\necho -n \"$IMAGE\" | tee /tekton/results/IMAGE_URL\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "inject-sbom-and-push",
+                    "image": "registry.access.redhat.com/ubi9/buildah@sha256:c8b1d312815452964885680fc5bc8d99b3bfe9b6961228c71a09c72ca8e915eb"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "",
+                  "arguments": [
+                    "attach",
+                    "sbom",
+                    "--sbom",
+                    "sbom-cyclonedx.json",
+                    "--type",
+                    "cyclonedx",
+                    "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c"
+                  ],
+                  "environment": {
+                    "container": "upload-sbom",
+                    "image": "quay.io/redhat-appstudio/cosign@sha256:18b3716a6225727877475e1ab4f2493915e72cffd2ce431e9901d2ed2e4b2c0b"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "BUILDER_IMAGE": "registry.access.redhat.com/ubi9/buildah:9.0.0-19@sha256:c8b1d312815452964885680fc5bc8d99b3bfe9b6961228c71a09c72ca8e915eb",
+                  "CONTEXT": ".",
+                  "DOCKERFILE": "./Containerfile",
+                  "DOCKER_AUTH": "contract-golden-image-on-push-cg9vm",
+                  "HERMETIC": "false",
+                  "IMAGE": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c",
+                  "PREFETCH_INPUT": "",
+                  "TLSVERIFY": "true"
+                }
+              },
+              "results": [
+                {
+                  "name": "JAVA_COMMUNITY_DEPENDENCIES",
+                  "type": "string",
+                  "value": ""
+                },
+                {
+                  "name": "BASE_IMAGES_DIGESTS",
+                  "type": "string",
+                  "value": "registry.access.redhat.com/ubi9/ubi-micro:<none>@sha256:536797149b2e614c16c18d38ae7f50889297e92a7cc4a602491477ddc3bb061f\n"
+                },
+                {
+                  "name": "IMAGE_DIGEST",
+                  "type": "string",
+                  "value": "sha256:304040ca1911aa4d911bd7c6d6d07193c57dc49dbc43e63828b42ab204fb1b25"
+                },
+                {
+                  "name": "IMAGE_URL",
+                  "type": "string",
+                  "value": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c"
+                }
+              ]
+            },
+            {
+              "name": "sanity-inspect-image",
+              "after": [
+                "build-container",
+                "init"
+              ],
+              "ref": {
+                "name": "sanity-inspect-image",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-sanity-inspect-image:0.1@sha256:fd4efd9d12eea3a8d47532c4226e685618845d0ba95abb98e008020243d96301"
+              },
+              "startedOn": "2023-03-22T19:39:46Z",
+              "finishedOn": "2023-03-22T19:40:08Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/usr/bin/env bash\nsource /utils.sh\nIMAGE_INSPECT=image_inspect.json\nBASE_IMAGE_INSPECT=base_image_inspect.json\nRAW_IMAGE_INSPECT=raw_image_inspect.json\n\nIMAGE_URL=\"${IMAGE_URL}@${IMAGE_DIGEST}\"\n# Given a tag and a the digest in the IMAGE_URL we opt to use the digest alone\n# this is because containers/image currently doesn't support image references\n# that contain both. See https://github.com/containers/image/issues/1736\nif [[ \"${IMAGE_URL}\" == *\":\"*\"@\"* ]]; then\n  IMAGE_URL=\"${IMAGE_URL/:*@/@}\"\nfi\necho \"Inspecting manifest for source image ${IMAGE_URL}\"\nskopeo inspect --no-tags docker://\"${IMAGE_URL}\" > $IMAGE_INSPECT 2> stderr.txt || true\nskopeo inspect --no-tags --raw docker://\"${IMAGE_URL}\" > $RAW_IMAGE_INSPECT 2>> stderr.txt || true\n\nif [ ! -z $(cat stderr.txt) ]; then\n  echo \"skopeo inspect fails, the sanity-inspect-image test meets the following error:\"\n  cat stderr.txt\n  HACBS_TEST_OUTPUT=\"$(make_result_json -r ERROR -t 'skopeo inspect meets errors')\"\n  echo \"${HACBS_TEST_OUTPUT}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n  exit 0\nfi\necho \"Getting base image manifest for source image ${IMAGE_URL}\"\nBASE_IMAGE_NAME=\"$(jq -r \".annotations.\\\"org.opencontainers.image.base.name\\\"\" $RAW_IMAGE_INSPECT)\"\nBASE_IMAGE_DIGEST=\"$(jq -r \".annotations.\\\"org.opencontainers.image.base.digest\\\"\" $RAW_IMAGE_INSPECT)\"\nif [ $BASE_IMAGE_NAME == 'null' ]; then\n  echo \"Cannot get base image info from 'annotations'\"\n  echo \"Trying to get base image info from 'Labels'\"\n  BASE_IMAGE_NAME=\"$(jq -r \".Labels.\\\"org.opencontainers.image.base.name\\\"\" $IMAGE_INSPECT)\"\n  BASE_IMAGE_DIGEST=\"$(jq -r \".annotations.\\\"org.opencontainers.image.base.digest\\\"\" $IMAGE_INSPECT)\"\n  if [ \"$BASE_IMAGE_NAME\" == 'null' ]; then\n    echo \"Cannot get base image info from 'Labels', please check the source image ${IMAGE_URL}\"\n    exit 0\n  fi\nfi\nif [ -z \"$BASE_IMAGE_NAME\" ]; then\n  echo \"Source image ${IMAGE_URL} is built from scratch, so there is no base image\"\n  exit 0\nfi\nBASE_IMAGE=\"${BASE_IMAGE_NAME%:*}@$BASE_IMAGE_DIGEST\"\necho \"The base image is $BASE_IMAGE, get its manifest now\"\nskopeo inspect --no-tags docker://$BASE_IMAGE  > $BASE_IMAGE_INSPECT || true\necho -n \"$BASE_IMAGE\" | tee /tekton/results/BASE_IMAGE\n\nBASE_IMAGE_REPOSITORY=\"$(jq -r '.Name | sub(\"[^/]+/\"; \"\") | sub(\"[:@].*\"; \"\")' \"$BASE_IMAGE_INSPECT\")\"\necho -n \"$BASE_IMAGE_REPOSITORY\" | tee /tekton/results/BASE_IMAGE_REPOSITORY\n\nHACBS_TEST_OUTPUT=\"$(make_result_json -r SUCCESS -s 1)\"\necho \"${HACBS_TEST_OUTPUT}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "inspect-image",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "DOCKER_AUTH": "contract-golden-image-on-push-cg9vm",
+                  "IMAGE_DIGEST": "sha256:304040ca1911aa4d911bd7c6d6d07193c57dc49dbc43e63828b42ab204fb1b25",
+                  "IMAGE_URL": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c"
+                }
+              },
+              "results": [
+                {
+                  "name": "BASE_IMAGE",
+                  "type": "string",
+                  "value": "registry.access.redhat.com/ubi9/ubi-micro@sha256@sha256:23c265a1f82aa393e7361d3a01060bbefdaa10fa8f21fa15e056ae0ea5a5fb34"
+                },
+                {
+                  "name": "BASE_IMAGE_REPOSITORY",
+                  "type": "string",
+                  "value": ""
+                },
+                {
+                  "name": "HACBS_TEST_OUTPUT",
+                  "type": "string",
+                  "value": "{\"result\":\"SUCCESS\",\"timestamp\":\"1679514007\",\"note\":\"For more details please visit the logs in workspace of Tekton tasks.\",\"namespace\":\"default\",\"successes\":1,\"failures\":0,\"warnings\":0}\n"
+                }
+              ]
+            },
+            {
+              "name": "sanity-label-check",
+              "after": [
+                "sanity-inspect-image"
+              ],
+              "ref": {
+                "name": "sanity-label-check",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-sanity-label-check:0.1@sha256:534770bf7a7c10277ab5f9c1e7b766abbffb343cc864dd9545aecc5278257dc3"
+              },
+              "startedOn": "2023-03-22T19:40:10Z",
+              "finishedOn": "2023-03-22T19:40:32Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/usr/bin/env bash\n\n. /utils.sh\nif [ ! -s ../sanity-inspect-image/image_inspect.json ]; then\n  echo \"File ../sanity-inspect-image/image_inspect.json is not generated correctly, please check HACBS_TEST_OUTPUT of task sanity-inspect-image\"\n  HACBS_TEST_OUTPUT=\"$(make_result_json -r ERROR -t 'File ../sanity-inspect-image/image_inspect.json is not generated correctly, please check HACBS_TEST_OUTPUT of task sanity-inspect-image!')\"\n  echo \"${HACBS_TEST_OUTPUT}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n  exit 0\nfi\n\nCONFTEST_OPTIONS=\"\"\nif [ -s \"../sanity-inspect-image/base_image_inspect.json\" ]; then\n  CONFTEST_OPTIONS=\"-d=../sanity-inspect-image/base_image_inspect.json\"\nfi\n\necho \"Running conftest using $POLICY_DIR policy, $POLICY_NAMESPACE namespace\"\n/usr/bin/conftest test --no-fail ../sanity-inspect-image/image_inspect.json \"${CONFTEST_OPTIONS}\" \\\n--policy $POLICY_DIR --namespace $POLICY_NAMESPACE \\\n--output=json 2> stderr.txt | tee sanity_label_check_output.json\n\nif [ ! -z $(cat stderr.txt) ]; then\n  echo \"The sanity-label-check test meets the following error:\"\n  cat stderr.txt\nfi\nHACBS_ERROR_OUTPUT=$(make_result_json -r \"ERROR\")\n\nHACBS_TEST_OUTPUT=\nparse_hacbs_test_output sanity-label-check conftest sanity_label_check_output.json || true\n\necho \"${HACBS_TEST_OUTPUT:-${HACBS_ERROR_OUTPUT}}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "basic-sanity-checks-required-labels",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "POLICY_DIR": "/project/image/",
+                  "POLICY_NAMESPACE": "required_checks"
+                }
+              },
+              "results": [
+                {
+                  "name": "HACBS_TEST_OUTPUT",
+                  "type": "string",
+                  "value": "{\"result\":\"SUCCESS\",\"timestamp\":\"1679514032\",\"note\":\"For more details please visit the logs in workspace of Tekton tasks.\",\"namespace\":\"required_checks\",\"successes\":21,\"failures\":0,\"warnings\":0}\n"
+                }
+              ]
+            },
+            {
+              "name": "sanity-optional-label-check",
+              "after": [
+                "sanity-inspect-image"
+              ],
+              "ref": {
+                "name": "sanity-label-check",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-sanity-label-check:0.1@sha256:534770bf7a7c10277ab5f9c1e7b766abbffb343cc864dd9545aecc5278257dc3"
+              },
+              "startedOn": "2023-03-22T19:40:10Z",
+              "finishedOn": "2023-03-22T19:40:33Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/usr/bin/env bash\n\n. /utils.sh\nif [ ! -s ../sanity-inspect-image/image_inspect.json ]; then\n  echo \"File ../sanity-inspect-image/image_inspect.json is not generated correctly, please check HACBS_TEST_OUTPUT of task sanity-inspect-image\"\n  HACBS_TEST_OUTPUT=\"$(make_result_json -r ERROR -t 'File ../sanity-inspect-image/image_inspect.json is not generated correctly, please check HACBS_TEST_OUTPUT of task sanity-inspect-image!')\"\n  echo \"${HACBS_TEST_OUTPUT}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n  exit 0\nfi\n\nCONFTEST_OPTIONS=\"\"\nif [ -s \"../sanity-inspect-image/base_image_inspect.json\" ]; then\n  CONFTEST_OPTIONS=\"-d=../sanity-inspect-image/base_image_inspect.json\"\nfi\n\necho \"Running conftest using $POLICY_DIR policy, $POLICY_NAMESPACE namespace\"\n/usr/bin/conftest test --no-fail ../sanity-inspect-image/image_inspect.json \"${CONFTEST_OPTIONS}\" \\\n--policy $POLICY_DIR --namespace $POLICY_NAMESPACE \\\n--output=json 2> stderr.txt | tee sanity_label_check_output.json\n\nif [ ! -z $(cat stderr.txt) ]; then\n  echo \"The sanity-label-check test meets the following error:\"\n  cat stderr.txt\nfi\nHACBS_ERROR_OUTPUT=$(make_result_json -r \"ERROR\")\n\nHACBS_TEST_OUTPUT=\nparse_hacbs_test_output sanity-label-check conftest sanity_label_check_output.json || true\n\necho \"${HACBS_TEST_OUTPUT:-${HACBS_ERROR_OUTPUT}}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "basic-sanity-checks-required-labels",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "POLICY_DIR": "/project/image/",
+                  "POLICY_NAMESPACE": "optional_checks"
+                }
+              },
+              "results": [
+                {
+                  "name": "HACBS_TEST_OUTPUT",
+                  "type": "string",
+                  "value": "{\"result\":\"SUCCESS\",\"timestamp\":\"1679514032\",\"note\":\"For more details please visit the logs in workspace of Tekton tasks.\",\"namespace\":\"optional_checks\",\"successes\":7,\"failures\":0,\"warnings\":0}\n"
+                }
+              ]
+            },
+            {
+              "name": "deprecated-base-image-check",
+              "after": [
+                "build-container"
+              ],
+              "ref": {
+                "name": "deprecated-image-check",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-deprecated-image-check:0.1@sha256:28d724dd6f6c365b2a839d9e52baac91559fd78c160774769c1ec724301f78d4"
+              },
+              "startedOn": "2023-03-22T19:39:46Z",
+              "finishedOn": "2023-03-22T19:40:10Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/usr/bin/env bash\nreadarray -t IMAGE_ARRAY < <(echo -n \"$BASE_IMAGES_DIGESTS\" | sed 's/\\\\n/\\'$'\\n''/g')\nfor BASE_IMAGE in ${IMAGE_ARRAY[@]};\ndo\n  IFS=:'/' read -r IMAGE_REGISTRY IMAGE_WITH_TAG <<< $BASE_IMAGE; echo \"[$IMAGE_REGISTRY] [$IMAGE_WITH_TAG]\"\n  IMAGE_REPOSITORY=`echo $IMAGE_WITH_TAG | cut -d \":\" -f1`\n  IMAGE_REGISTRY=${IMAGE_REGISTRY//registry.redhat.io/registry.access.redhat.com}\n  export IMAGE_REPO_PATH=/workspace/sanity-ws/${IMAGE_REPOSITORY}\n  mkdir -p ${IMAGE_REPO_PATH}\n  echo \"Querying Pyxis for $BASE_IMAGE...\"\n  http_code=$(curl -s -k -o ${IMAGE_REPO_PATH}/repository_data.json -w '%{http_code}' \"https://catalog.redhat.com/api/containers/v1/repositories/registry/${IMAGE_REGISTRY}/repository/${IMAGE_REPOSITORY}\")\n  echo \"Response code: $http_code\"\n  echo $http_code $IMAGE_REGISTRY $IMAGE_REPOSITORY>> /tekton/results/PYXIS_HTTP_CODE\ndone\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "query-pyxis",
+                    "image": "registry.access.redhat.com/ubi8/ubi-minimal@sha256:ab03679e683010d485ef0399e056b09a38d7843ba4a36ee7dec337dd0037f7a7"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "#!/usr/bin/env sh\nsource /utils.sh\n\nsuccess_counter=0\nfailure_counter=0\nerror_counter=0\nif [ ! -f /tekton/results/PYXIS_HTTP_CODE ]; then\n  error_counter=$((error_counter++))\nfi\nwhile IFS= read -r line\ndo\n  IFS=:' ' read -r http_code IMAGE_REGISTRY IMAGE_REPOSITORY <<< $line; echo \"[$http_code] [$IMAGE_REGISTRY] [$IMAGE_REPOSITORY]\"\n  export IMAGE_REPO_PATH=/workspace/sanity-ws/${IMAGE_REPOSITORY}\n  if [ \"$http_code\" == \"200\" ];\n  then\n    echo \"Running conftest using $POLICY_DIR policy, $POLICY_NAMESPACE namespace\"\n    /usr/bin/conftest test --no-fail ${IMAGE_REPO_PATH}/repository_data.json \\\n    --policy $POLICY_DIR --namespace $POLICY_NAMESPACE \\\n    --output=json 2> ${IMAGE_REPO_PATH}/stderr.txt | tee ${IMAGE_REPO_PATH}/deprecated_image_check_output.json\n\n    failure_counter=$((failure_counter+$(jq -r '.[].failures|length' ${IMAGE_REPO_PATH}/deprecated_image_check_output.json)))\n    success_counter=$((success_counter+$(jq -r '.[].successes' ${IMAGE_REPO_PATH}/deprecated_image_check_output.json)))\n\n  elif [ \"$http_code\" == \"404\" ];\n  then\n    echo \"Registry/image ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY} not found in Pyxis\" >> /workspace/sanity-ws/stderr.txt\n    cat /workspace/sanity-ws/stderr.txt\n  else\n    echo \"Unexpected error (HTTP code $http_code) occured for registry/image ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}\" >> /workspace/sanity-ws/stderr.txt\n    cat /workspace/sanity-ws/stderr.txt\n    error_counter=$((error_counter++))\n    exit 0\n  fi\ndone < /tekton/results/PYXIS_HTTP_CODE\n\nHACBS_ERROR_OUTPUT=$(make_result_json -r ERROR -n \"$POLICY_NAMESPACE\")\nif [[ \"$error_counter\" == 0 && \"$success_counter\" > 0 ]];\nthen\n  if [[ \"${failure_counter}\" -gt 0 ]]; then RES=\"FAILURE\"; else RES=\"SUCCESS\"; fi\n  HACBS_TEST_OUTPUT=$(make_result_json \\\n    -r \"${RES}\" -n \"$POLICY_NAMESPACE\" \\\n    -s \"${success_counter}\" -f \"${failure_counter}\")\nfi\necho \"${HACBS_TEST_OUTPUT:-${HACBS_ERROR_OUTPUT}}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "run-conftest",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "BASE_IMAGES_DIGESTS": "registry.access.redhat.com/ubi9/ubi-micro:<none>@sha256:536797149b2e614c16c18d38ae7f50889297e92a7cc4a602491477ddc3bb061f\n",
+                  "POLICY_DIR": "/project/repository/",
+                  "POLICY_NAMESPACE": "required_checks"
+                }
+              },
+              "results": [
+                {
+                  "name": "PYXIS_HTTP_CODE",
+                  "type": "string",
+                  "value": "200 registry.access.redhat.com ubi9/ubi-micro\n"
+                },
+                {
+                  "name": "HACBS_TEST_OUTPUT",
+                  "type": "string",
+                  "value": "{\"result\":\"SUCCESS\",\"timestamp\":\"1679514009\",\"note\":\"For more details please visit the logs in workspace of Tekton tasks.\",\"namespace\":\"required_checks\",\"successes\":1,\"failures\":0,\"warnings\":0}\n"
+                }
+              ]
+            },
+            {
+              "name": "clair-scan",
+              "after": [
+                "build-container",
+                "init"
+              ],
+              "ref": {
+                "name": "clair-scan",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-clair-scan:0.1@sha256:fba8170329ab00b864ee7d16e0358df4c4386880e10894fd7bbbb1457112477b"
+              },
+              "startedOn": "2023-03-22T19:39:46Z",
+              "finishedOn": "2023-03-22T19:39:55Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/usr/bin/env bash\n\nimagewithouttag=$(echo $IMAGE_URL | sed \"s/\\(.*\\):.*/\\1/\" | tr -d '\\n')\n# strip new-line escape symbol from parameter and save it to variable\nimageanddigest=$(echo $imagewithouttag@$IMAGE_DIGEST)\n\nclair-action report --image-ref=$imageanddigest --db-path=/tmp/matcher.db --format=quay > /tekton/home/clair-result.json || true\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "get-vulnerabilities",
+                    "image": "quay.io/redhat-appstudio/clair-in-ci@sha256:1809f157ac6ff0c10f9419ee3cc0efc7bb87d48f98cf7939359dd07eabbf0a8f"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "if [ ! -s /tekton/home/clair-result.json ]; then\n  echo \"Previous step [get-vulnerabilities] failed, /tekton/home/clair-result.json is empty.\"\nelse\n  /usr/bin/conftest test --no-fail /tekton/home/clair-result.json \\\n  --policy /project/clair/vulnerabilities-check.rego --namespace required_checks \\\n  --output=json | tee /tekton/home/clair-vulnerabilities.json || true\nfi\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "conftest-vulnerabilities",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "#!/usr/bin/env bash\n. /utils.sh\n\nif [[ ! -f /tekton/home/clair-vulnerabilities.json ]] || [[ \"$(jq '.[] | has(\"failures\")' /tekton/home/clair-vulnerabilities.json)\" == \"false\" ]]; then\n  HACBS_TEST_OUTPUT=$(make_result_json -r \"ERROR\" -t \"/tekton/home/clair-vulnerabilities.json is not generated correctly, please check again\")\n  echo \"/tekton/home/clair-vulnerabilities.json is not generated correctly, please check again\"\n  echo \"${HACBS_TEST_OUTPUT}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n  exit 0\nfi\n\njq -rce \\\n  '{vulnerabilities:{\n      critical: (.[] | .failures | map(select(.metadata.details.name==\"clair_critical_vulnerabilities\")) | length),\n      high: (.[] | .failures | map(select(.metadata.details.name==\"clair_high_vulnerabilities\")) | length),\n      medium: (.[] | .failures | map(select(.metadata.details.name==\"clair_medium_vulnerabilities\")) | length),\n      low: (.[] | .failures | map(select(.metadata.details.name==\"clair_low_vulnerabilities\")) | length)\n    }}' /tekton/home/clair-vulnerabilities.json | tee /tekton/results/CLAIR_SCAN_RESULT\n\nHACBS_TEST_OUTPUT=$(make_result_json -r \"SUCCESS\" -t \"Please refer to result CLAIR_SCAN_RESULT for the vulnerabilities scanned by clair\")\necho \"${HACBS_TEST_OUTPUT}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "test-format-result",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "docker-auth": "contract-golden-image-on-push-cg9vm",
+                  "image-digest": "sha256:304040ca1911aa4d911bd7c6d6d07193c57dc49dbc43e63828b42ab204fb1b25",
+                  "image-url": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c"
+                }
+              },
+              "results": [
+                {
+                  "name": "HACBS_TEST_OUTPUT",
+                  "type": "string",
+                  "value": "{\"result\":\"ERROR\",\"timestamp\":\"1679513994\",\"note\":\"/tekton/home/clair-vulnerabilities.json is not generated correctly, please check again\",\"namespace\":\"default\",\"successes\":0,\"failures\":0,\"warnings\":0}\n"
+                },
+                {
+                  "name": "CLAIR_SCAN_RESULT",
+                  "type": "string",
+                  "value": "{\"vulnerabilities\":{\"critical\":2,\"high\":36,\"medium\":20,\"low\":300}}\n"
+                }
+              ]
+            },
+            {
+              "name": "clamav-scan",
+              "after": [
+                "build-container",
+                "init"
+              ],
+              "ref": {
+                "name": "clamav-scan",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-clamav-scan:0.1@sha256:28b425322aa84f988c6c4f8d503787b3fb301668b2ad6728846b8f8c45ba012b"
+              },
+              "startedOn": "2023-03-22T19:39:46Z",
+              "finishedOn": "2023-03-22T19:40:51Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "imagewithouttag=$(echo $IMAGE_URL | sed \"s/\\(.*\\):.*/\\1/\" | tr -d '\\n')\n\n# strip new-line escape symbol from parameter and save it to variable\nimageanddigest=$(echo $imagewithouttag@$IMAGE_DIGEST)\n\n# check if image is attestation one, skip the clamav scan in such case\nif [[ $imageanddigest == *.att ]]\nthen\n    echo \"$imageanddigest is an attestation image, skipping clamav scan\"\n    exit 0\nfi\nmkdir content\ncd content\necho Extracting image\nif ! oc image extract $imageanddigest; then\n  echo \"Unable to extract image! Skipping clamscan!\"\n  exit 0\nfi\necho Extraction done\nclamscan -ri --max-scansize=250M | tee /tekton/home/clamscan-result.log\necho \"Executed-on: Scan was executed on version - $(clamscan --version)\" | tee -a /tekton/home/clamscan-result.log\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "extract-and-scan-image",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "#!/usr/bin/env python3.9\nimport json\nimport dateutil.parser as parser\nimport os\n\nclamscan_result = \"/tekton/home/clamscan-result.log\"\nif not os.path.exists(clamscan_result) or os.stat(clamscan_result).st_size == 0:\n    print(\"clamscan-result.log file is empty, meaning previous step didn't extracted the compiled code, skipping parsing.\")\n    exit(0)\n\nwith open(clamscan_result, \"r\") as file:\n    clam_result_str = file.read()\n\ndef clam_result_str_to_json(clam_result_str):\n\n    clam_result_list = clam_result_str.split(\"\\n\")\n    clam_result_list.remove('')\n\n    results_marker = \\\n        clam_result_list.index(\"----------- SCAN SUMMARY -----------\")\n\n    hit_list = clam_result_list[:results_marker]\n    summary_list = clam_result_list[(results_marker + 1):]\n\n    r_dict = { \"hits\": hit_list }\n    for item in summary_list:\n        # in case of blank lines\n        if not item:\n            continue\n        split_index = [c == ':' for c in item].index(True)\n        key = item[:split_index].lower()\n        key = key.replace(\" \", \"_\")\n        value = item[(split_index + 1):].strip(\" \")\n        if (key == \"start_date\" or key == \"end_date\"):\n          isodate = parser.parse(value)\n          value = isodate.isoformat()\n        r_dict[key] = value\n    print(json.dumps(r_dict))\n    with open('/tekton/home/clamscan-result.json', 'w') as f:\n      print(json.dumps(r_dict), file=f)\n\ndef main():\n    clam_result_str_to_json(clam_result_str)\n\nif __name__ == \"__main__\":\n    main()\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "modify-clam-output-to-json",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                },
+                {
+                  "entryPoint": "#!/usr/bin/env bash\nsource /utils.sh\n\nHACBS_ERROR_OUTPUT=$(make_result_json -r \"ERROR\")\nif [ -f /tekton/home/clamscan-result.json ];\nthen\n  cat /tekton/home/clamscan-result.json\n  INFECTED_FILES=$(jq -r '.infected_files' /tekton/home/clamscan-result.json || true )\n  if [ -z \"${INFECTED_FILES}\" ]; then\n    echo \"Failed to get number of infected files\"\n  else\n    if [[ \"${INFECTED_FILES}\" -gt 0 ]]; then RES=\"FAILURE\"; else RES=\"SUCCESS\"; fi\n    HACBS_TEST_OUTPUT=$(make_result_json -r \"${RES}\" -s 1 -f \"${INFECTED_FILES}\")\n  fi\nfi\necho \"${HACBS_TEST_OUTPUT:-${HACBS_ERROR_OUTPUT}}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "store-hacbs-test-output-result",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "docker-auth": "contract-golden-image-on-push-cg9vm",
+                  "image-digest": "sha256:304040ca1911aa4d911bd7c6d6d07193c57dc49dbc43e63828b42ab204fb1b25",
+                  "image-url": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c"
+                }
+              },
+              "results": [
+                {
+                  "name": "HACBS_TEST_OUTPUT",
+                  "type": "string",
+                  "value": "{\"result\":\"SUCCESS\",\"timestamp\":\"1679514050\",\"note\":\"For more details please visit the logs in workspace of Tekton tasks.\",\"namespace\":\"default\",\"successes\":1,\"failures\":0,\"warnings\":0}\n"
+                }
+              ]
+            },
+            {
+              "name": "sbom-json-check",
+              "after": [
+                "build-container"
+              ],
+              "ref": {
+                "name": "sbom-json-check",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-sbom-json-check:0.1@sha256:ce6a0932da9b41080108284d1366fc2de8374fca5137500138e16ad9e04610c6"
+              },
+              "startedOn": "2023-03-22T19:39:47Z",
+              "finishedOn": "2023-03-22T19:40:10Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/usr/bin/env bash\nsource /utils.sh\n\nmkdir /manifests/ && cd /manifests/\n\nimage_with_digest=\"${IMAGE_URL}@${IMAGE_DIGEST}\"\n\nif ! oc image extract \"${image_with_digest}\" --path '/root/buildinfo/content_manifests/*:/manifests/'; then\n  echo \"Failed to extract manifests from image ${image_with_digest}\"\nfi\n\ntouch fail_result.txt\nif [ -f \"sbom-cyclonedx.json\" ]\nthen\n  result=$(echo -n $(cyclonedx-linux-x64 validate --input-file sbom-cyclonedx.json))\n  if [[ ! $result =~ \"BOM validated successfully\" ]]\n  then\n    echo \"sbom-cyclonedx.json: $result\" > fail_result.txt\n  fi\nelse\n  echo \"cannot access 'sbom-cyclonedx.json': No such file or directory\" > fail_result.txt\nfi\n\nFAIL_RESULTS=\"$(cat fail_result.txt)\"\nif [[ -z $FAIL_RESULTS ]]\nthen\n  HACBS_TEST_OUTPUT=$(make_result_json -r \"SUCCESS\" -s 1)\nelse\n  echo \"Fail to verify sbom-cyclonedx.json for image $IMAGE_URL with reason: $FAIL_RESULTS\"\n  HACBS_ERROR_OUTPUT=$(make_result_json -r \"FAILURE\" -f 1)\nfi\n\necho \"${HACBS_TEST_OUTPUT:-${HACBS_ERROR_OUTPUT}}\" | tee /tekton/results/HACBS_TEST_OUTPUT\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "sbom-json-check",
+                    "image": "quay.io/redhat-appstudio/hacbs-test@sha256:acf4e35adfbe16916d400f36b616236d872c2527c7618ffc6758ae930e353668"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "IMAGE_DIGEST": "sha256:304040ca1911aa4d911bd7c6d6d07193c57dc49dbc43e63828b42ab204fb1b25",
+                  "IMAGE_URL": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c"
+                }
+              },
+              "results": [
+                {
+                  "name": "HACBS_TEST_OUTPUT",
+                  "type": "string",
+                  "value": "{\"result\":\"SUCCESS\",\"timestamp\":\"1679514009\",\"note\":\"For more details please visit the logs in workspace of Tekton tasks.\",\"namespace\":\"default\",\"successes\":1,\"failures\":0,\"warnings\":0}\n"
+                }
+              ]
+            },
+            {
+              "name": "show-summary",
+              "after": [
+                "clone-repository"
+              ],
+              "ref": {
+                "name": "summary",
+                "kind": "Task",
+                "bundle": "quay.io/redhat-appstudio-tekton-catalog/task-summary:0.1@sha256:c0f66b28c338426774e34a8d4a00349fbab798b19df5841a95727148d5ef3c65"
+              },
+              "startedOn": "2023-03-22T19:40:52Z",
+              "finishedOn": "2023-03-22T19:41:04Z",
+              "status": "Succeeded",
+              "steps": [
+                {
+                  "entryPoint": "#!/usr/bin/env bash\necho\necho \"Build Summary:\"\necho\necho \"Build repository: $GIT_URL\"\nif [ \"$BUILD_TASK_STATUS\" == \"Succeeded\" ]; then\n  echo \"Generated Image is in : $IMAGE_URL\"\nfi\necho\noc annotate --overwrite pipelinerun $PIPELINERUN_NAME build.appstudio.openshift.io/repo=$GIT_URL\nif [ \"$BUILD_TASK_STATUS\" == \"Succeeded\" ]; then\n  oc annotate --overwrite pipelinerun $PIPELINERUN_NAME build.appstudio.openshift.io/image=$IMAGE_URL\nfi\necho End Summary\n\noc delete --ignore-not-found=true secret $PIPELINERUN_NAME\n",
+                  "arguments": null,
+                  "environment": {
+                    "container": "appstudio-summary",
+                    "image": "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:9f0cdc00b1b1a3c17411e50653253b9f6bb5329ea4fb82ad983790a6dbf2d9ad"
+                  },
+                  "annotations": null
+                }
+              ],
+              "invocation": {
+                "configSource": {},
+                "parameters": {
+                  "build-task-status": "Succeeded",
+                  "git-url": "https://github.com/hacbs-contract/golden-container?rev=08b938499ee47a25673f5e6a56f69ce57d87b45c",
+                  "image-url": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c",
+                  "pipelinerun-name": "contract-golden-image-on-push-cg9vm"
+                }
+              }
+            }
+          ]
+        },
+        "metadata": {
+          "buildStartedOn": "2023-03-22T19:38:01Z",
+          "buildFinishedOn": "2023-03-22T19:41:05Z",
+          "completeness": {
+            "parameters": false,
+            "environment": false,
+            "materials": false
+          },
+          "reproducible": false
+        },
+        "materials": [
+          {
+            "uri": "git+https://github.com/hacbs-contract/golden-container.git",
+            "digest": {
+              "sha1": "08b938499ee47a25673f5e6a56f69ce57d87b45c"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "_type": "https://in-toto.io/Statement/v0.1",
+      "predicateType": "https://slsa.dev/provenance/v0.2",
+      "subject": [
+        {
+          "name": "quay.io/redhat-appstudio/ec-golden-image",
+          "digest": {
+            "sha256": "304040ca1911aa4d911bd7c6d6d07193c57dc49dbc43e63828b42ab204fb1b25"
+          }
+        }
+      ],
+      "predicate": {
+        "builder": {
+          "id": "https://tekton.dev/chains/v2"
+        },
+        "buildType": "tekton.dev/v1beta1/TaskRun",
+        "invocation": {
+          "configSource": {},
+          "parameters": {
+            "BUILDER_IMAGE": "registry.access.redhat.com/ubi9/buildah:9.0.0-19@sha256:c8b1d312815452964885680fc5bc8d99b3bfe9b6961228c71a09c72ca8e915eb",
+            "CONTEXT": ".",
+            "DOCKERFILE": "./Containerfile",
+            "DOCKER_AUTH": "contract-golden-image-on-push-cg9vm",
+            "HERMETIC": "false",
+            "IMAGE": "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c",
+            "PREFETCH_INPUT": "",
+            "TLSVERIFY": "true"
+          }
+        },
+        "buildConfig": {
+          "steps": [
+            {
+              "entryPoint": "if [ -e \"$CONTEXT/$DOCKERFILE\" ]; then\n  dockerfile_path=\"$CONTEXT/$DOCKERFILE\"\nelif [ -e \"$DOCKERFILE\" ]; then\n  dockerfile_path=\"$DOCKERFILE\"\nelif echo \"$DOCKERFILE\" | grep -q \"^https\\?://\"; then\n  echo \"Fetch Dockerfile from $DOCKERFILE\"\n  dockerfile_path=$(mktemp --suffix=-Dockerfile)\n  http_code=$(curl -s -L -w \"%{http_code}\" --output \"$dockerfile_path\" \"$DOCKERFILE\")\n  if [ $http_code != 200 ]; then\n    echo \"No Dockerfile is fetched. Server responds $http_code\"\n    exit 1\n  fi\nelse\n  echo \"Cannot find Dockerfile $DOCKERFILE\"\n  exit 1\nfi\nif [ -n \"$JVM_BUILD_WORKSPACE_ARTIFACT_CACHE_PORT_80_TCP_ADDR\" ] && grep -q '^\\s*RUN \\(./\\)\\?mvn' \"$dockerfile_path\"; then\n  sed -i -e \"s|^\\s*RUN \\(\\(./\\)\\?mvn\\(.*\\)\\)|RUN echo \\\"<settings><mirrors><mirror><id>mirror.default</id><url>http://$JVM_BUILD_WORKSPACE_ARTIFACT_CACHE_PORT_80_TCP_ADDR/v1/cache/default/0/</url><mirrorOf>*</mirrorOf></mirror></mirrors></settings>\\\" > /tmp/settings.yaml; \\1 -s /tmp/settings.yaml|g\" \"$dockerfile_path\"\n  touch /var/lib/containers/java\nfi\n\n\nsed -i 's/^\\s*short-name-mode\\s*=\\s*.*/short-name-mode = \"disabled\"/' /etc/containers/registries.conf\n\n# Setting new namespace to run buildah - 2^32-2\necho 'root:1:4294967294' | tee -a /etc/subuid >> /etc/subgid\n\nif [ \"${HERMETIC}\" == \"true\" ]; then\n  BUILDAH_ARGS=\"--pull=never\"\n  UNSHARE_ARGS=\"--net\"\n  for image in $(grep -i '^\\s*FROM' \"$dockerfile_path\" | sed 's/--platform=\\S*//' | awk '{print $2}'); do\n    unshare -Ufp --keep-caps -r --map-users 1,1,65536 --map-groups 1,1,65536 -- buildah pull $image\n  done\n  echo \"Build will be executed with network isolation\"\nfi\n\nif [ -n \"${PREFETCH_INPUT}\" ]; then\n  mv cachi2 /tmp/\n  chmod -R go+rwX /tmp/cachi2\n  VOLUME_MOUNTS=\"--volume /tmp/cachi2:/cachi2\"\n  sed -i 's|^\\s*run |RUN . /cachi2/cachi2.env \\&\\& \\\\\\n    |i' \"$dockerfile_path\"\n  echo \"Prefetched content will be made available\"\nfi\n\nunshare -Uf $UNSHARE_ARGS --keep-caps -r --map-users 1,1,65536 --map-groups 1,1,65536 -- buildah bud \\\n  $VOLUME_MOUNTS \\\n  $BUILDAH_ARGS \\\n  --tls-verify=$TLSVERIFY --no-cache \\\n  --ulimit nofile=4096:4096 \\\n  -f \"$dockerfile_path\" -t $IMAGE $CONTEXT\n\ncontainer=$(buildah from --pull-never $IMAGE)\nbuildah mount $container | tee /workspace/container_path\necho $container > /workspace/container_name\n",
+              "arguments": null,
+              "environment": {
+                "container": "build",
+                "image": "quay.io/redhat-appstudio/buildah@sha256:381e9bfedd59701477621da93892106873a6951b196105d3d2d85c3f6d7b569b"
+              },
+              "annotations": null
+            },
+            {
+              "entryPoint": "syft dir:/workspace/source --file=/workspace/source/sbom-source.json --output=cyclonedx-json\nfind $(cat /workspace/container_path) -xtype l -delete\nsyft dir:$(cat /workspace/container_path) --file=/workspace/source/sbom-image.json --output=cyclonedx-json\n",
+              "arguments": null,
+              "environment": {
+                "container": "sbom-get",
+                "image": "quay.io/redhat-appstudio/syft@sha256:09afc449976230f66848c19bb5ccf344eb0eeb4ed50747e33b53aff49462c319"
+              },
+              "annotations": null
+            },
+            {
+              "entryPoint": "if [ -f /var/lib/containers/java ]; then\n  /opt/jboss/container/java/run/run-java.sh analyse-dependencies path $(cat /workspace/container_path) -s /workspace/source/sbom-image.json --task-run-name contract-golden-image-on-push-cg9vm-build-container --publishers /tekton/results/SBOM_JAVA_COMPONENTS_COUNT\n  sed -i 's/^/ /' /tekton/results/SBOM_JAVA_COMPONENTS_COUNT # Workaround for SRVKP-2875\nelse\n  touch /tekton/results/JAVA_COMMUNITY_DEPENDENCIES\nfi\n",
+              "arguments": null,
+              "environment": {
+                "container": "analyse-dependencies-java-sbom",
+                "image": "quay.io/redhat-appstudio/hacbs-jvm-build-request-processor@sha256:b198cf4b33dab59ce8ac25afd4e1001390db29ca2dec83dc8a1e21b0359ce743"
+              },
+              "annotations": null
+            },
+            {
+              "entryPoint": "#!/bin/python3\nimport json\nimport os\n\n# load SBOMs\nwith open(\"./sbom-image.json\") as f:\n  image_sbom = json.load(f)\n\nwith open(\"./sbom-source.json\") as f:\n  source_sbom = json.load(f)\n\n# fetch unique components from available SBOMs\ndef get_identifier(component):\n  return component[\"name\"] + '@' + component.get(\"version\", \"\")\n\nexisting_components = [get_identifier(component) for component in image_sbom[\"components\"]]\n\nfor component in source_sbom[\"components\"]:\n  if get_identifier(component) not in existing_components:\n    image_sbom[\"components\"].append(component)\n    existing_components.append(get_identifier(component))\n\nimage_sbom[\"components\"].sort(key=lambda c: get_identifier(c))\n\n# write the CycloneDX unified SBOM\nwith open(\"./sbom-cyclonedx.json\", \"w\") as f:\n  json.dump(image_sbom, f, indent=4)\n\n# create and write the PURL unified SBOM\npurls = [{\"purl\": component[\"purl\"]} for component in image_sbom[\"components\"] if \"purl\" in component]\npurl_content = {\"image_contents\": {\"dependencies\": purls}}\n\nwith open(\"sbom-purl.json\", \"w\") as output_file:\n  json.dump(purl_content, output_file, indent=4)\n",
+              "arguments": null,
+              "environment": {
+                "container": "merge-sboms",
+                "image": "registry.access.redhat.com/ubi9/python-39@sha256:89463fe3e086620617a4f6281640469ba7a7abd2f1b5be13e6cf0f46a6565516"
+              },
+              "annotations": null
+            },
+            {
+              "entryPoint": "# Expose base image digests\nbuildah images --format '{{ .Name }}:{{ .Tag }}@{{ .Digest }}' | grep -v $IMAGE > /tekton/results/BASE_IMAGES_DIGESTS\n\nbase_image_name=$(buildah inspect --format '{{ index .ImageAnnotations \"org.opencontainers.image.base.name\"}}' $IMAGE)\nbase_image_digest=$(buildah inspect --format '{{ index .ImageAnnotations \"org.opencontainers.image.base.digest\"}}' $IMAGE)\ncontainer=$(buildah from --pull-never $IMAGE)\nbuildah copy $container sbom-cyclonedx.json sbom-purl.json /root/buildinfo/content_manifests/\nbuildah config -a org.opencontainers.image.base.name=${base_image_name} -a org.opencontainers.image.base.digest=${base_image_digest} $container\nbuildah commit $container $IMAGE\nbuildah push \\\n  --tls-verify=$TLSVERIFY \\\n  --digestfile /workspace/source/image-digest $IMAGE \\\n  docker://$IMAGE\ncat \"/workspace/source\"/image-digest | tee /tekton/results/IMAGE_DIGEST\necho -n \"$IMAGE\" | tee /tekton/results/IMAGE_URL\n",
+              "arguments": null,
+              "environment": {
+                "container": "inject-sbom-and-push",
+                "image": "registry.access.redhat.com/ubi9/buildah@sha256:c8b1d312815452964885680fc5bc8d99b3bfe9b6961228c71a09c72ca8e915eb"
+              },
+              "annotations": null
+            },
+            {
+              "entryPoint": "",
+              "arguments": [
+                "attach",
+                "sbom",
+                "--sbom",
+                "sbom-cyclonedx.json",
+                "--type",
+                "cyclonedx",
+                "quay.io/redhat-appstudio/ec-golden-image:08b938499ee47a25673f5e6a56f69ce57d87b45c"
+              ],
+              "environment": {
+                "container": "upload-sbom",
+                "image": "quay.io/redhat-appstudio/cosign@sha256:18b3716a6225727877475e1ab4f2493915e72cffd2ce431e9901d2ed2e4b2c0b"
+              },
+              "annotations": null
+            }
+          ]
+        },
+        "metadata": {
+          "buildStartedOn": "2023-03-22T19:38:51Z",
+          "buildFinishedOn": "2023-03-22T19:39:44Z",
+          "completeness": {
+            "parameters": false,
+            "environment": false,
+            "materials": false
+          },
+          "reproducible": false
+        }
+      }
+    }
+  ]
+}

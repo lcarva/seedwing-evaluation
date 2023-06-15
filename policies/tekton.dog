@@ -1,0 +1,12 @@
+pattern allow = has-pipeline-run-build-type
+
+// Verifies that at least one PipelineRun SLSA Provenance exists
+pattern has-pipeline-run-build-type = {
+    attestations: pipeline-run | _::not-empty
+}
+
+pattern pipeline-run = list::filter<slsa::v0_2::provenance> | list::filter<{
+    predicate: {
+        buildType: "tekton.dev/v1beta1/PipelineRun"
+    }
+}>
