@@ -18,7 +18,7 @@ release](https://github.com/seedwing-io/seedwing-policy/releases). Then, run the
 swio eval --input input/good.json --policy policies --name cve::allow
 ```
 
-That should succeed becauset `input/good.json` complies to the policy. Use the bad input to verify
+That should succeed because `input/good.json` complies to the policy. Use the bad input to verify
 the policy catches a non-compliant input:
 
 ```bash
