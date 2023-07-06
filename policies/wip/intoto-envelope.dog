@@ -1,0 +1,18 @@
+
+// Use the built in pattern to check the fields look right
+pattern format-check = intoto::envelope
+
+// Prepare parameter for intoto::verify-envelope
+pattern attesters = [
+    {
+        name: "RHTAP Chains Signing Key", // Does the name matter?
+        public_key: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZP/0htjhVt2y0ohjgtIIgICOtQtAnaYJRuLprwIv6FDhZ5yFjYUEtsmoNcW7rx2KM6FOXGsCX3BNc7qhHELT+g=="
+    }
+]
+
+// The sha of the manifest is the container image sha, so in theory this could work.
+// FIXME: Actually it throws errors about being unable to parse the blob.
+pattern blob = *data::from<"manifest.json">
+pattern sig-check = intoto::verify-envelope<attesters, blob>
+
+pattern good = format-check && sig-check
